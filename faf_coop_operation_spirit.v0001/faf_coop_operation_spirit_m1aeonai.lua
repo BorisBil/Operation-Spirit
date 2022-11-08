@@ -6,6 +6,9 @@
 ---             Mission 1
 -------------------------------------------------------------------------------------
 
+-----------
+--- Imports
+-----------
 local BaseManager = import('/lua/ai/opai/basemanager.lua')
 local SPAIFileName = '/lua/scenarioplatoonai.lua'
 
@@ -78,8 +81,8 @@ function AeonM1Base2LandDefenses()
     local opai = nil
     local quantity = {}
 
-    quantity = {50}
-    opai = AeonM1Base1:AddOpAI('BasicLandAttack', 'M1_Base_Land_2',
+    quantity = {5}
+    opai = AeonM1Base2:AddOpAI('BasicLandAttack', 'M1_Base_Land_2',
         {
             MasterPlatoonFunction = {SPAIFileName, 'PatrolThread'},
             PlatoonData = {

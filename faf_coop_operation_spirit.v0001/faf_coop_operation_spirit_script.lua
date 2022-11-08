@@ -18,6 +18,7 @@ local Cinematics = import('/lua/cinematics.lua')
 local ScenarioStrings = import('/lua/ScenarioStrings.lua')
 local Utilities = import('/lua/utilities.lua')
 local M1AeonBaseAI = import('/maps/faf_coop_operation_spirit.v0001/faf_coop_operation_spirit_m1aeonai.lua')
+local M2AeonBaseAI = import('/maps/faf_coop_operation_spirit.v0001/faf_coop_operation_spirit_m2aeonai.lua')
 
 -----------
 --- Globals
@@ -59,10 +60,12 @@ local NIS1InitialDelay = 1
 local Debug = false
 local SkipNIS1 = false
 local SkipNIS2 = false
+local SkipNIS3 = false
+local SkipNIS4 = false
 
------------
--- Start up
------------
+------------
+--- Start up
+------------
 function OnPopulate(scenario)
     ScenarioUtils.InitializeScenarioArmies()
     
@@ -108,10 +111,12 @@ function OnPopulate(scenario)
     ScenarioInfo.M1AeonRadar:SetCanTakeDamage(false)
 
     --- Set civilians to be unkillable for ease of play
-    ScenarioInfo.M1Civilians:SetReclaimable(false)
-    ScenarioInfo.M1Civilians:SetCanBeKilled(false)
-    ScenarioInfo.M1Civilians:SetCanTakeDamage(false)
-    ScenarioInfo.M1Civilians:SetCapturable(false)
+    for _, unit in ScenarioInfo.M1Civilians do
+        unit:SetReclaimable(false)
+        unit:SetCanBeKilled(false)
+        unit:SetCanTakeDamage(false)
+        unit:SetCapturable(false)
+    end
 end
 
 function OnStart(scenario)
@@ -145,9 +150,9 @@ function OnStart(scenario)
     end
 end
 
-------------
--- Intro NIS
-------------
+-------------
+--- Intro NIS
+-------------
 function NIS1()
     --- Enter cinematic mode, move to Aeon base target
     Cinematics.EnterNISMode()
@@ -186,22 +191,18 @@ function NIS1()
 
     --- Proceed to Mission 1
     Mission1()
-    
-    --- 1st Reinforcements
-    for i = 1, 6 do
-        local tank = ScenarioUtils.CreateArmyUnit('Player1', 'LightTank1')
-        IssueMove({tank}, ScenarioUtils.MarkerToPosition('M1_Land_1R'))
-        WaitSeconds(1)
-    end
 end
 
-------------
--- Mission 1
-------------
+-------------
+--- Mission 1
+-------------
 function Mission1()
 
     --- Spawn ACUs
     ForkThread(SpawnAllACUs)
+
+    --- 1st Wave Reinforcements
+    ForkThread(OffmapLandM1Reinforcements)
     
     --- Mission Number
     ScenarioInfo.MissionNumber = 1
@@ -241,11 +242,11 @@ function Mission1()
     table.insert(AssignedObjectives, ScenarioInfo.M1P1)
 end
 
---------------
--- NIS Scene 2
---------------
+---------------
+--- NIS Scene 2
+---------------
 function NIS2()
-    WaitSeconds(5)
+    WaitSeconds(4)
     
     --- Create enemy patrols
     local platoon = ScenarioUtils.CreateArmyGroupAsPlatoon('Aeon', 'M1_Land_2a', 'GrowthFormation')
@@ -286,14 +287,21 @@ function NIS2()
     Mission1Cont()
 end
 
-----------------------
--- Mission 1 Continued
-----------------------
+-----------------------
+--- Mission 1 Continued
+-----------------------
 function Mission1Cont()
+
+    --- Transport in Reinforcements
     Transport_Drops = 1
     ForkThread(TransportReinforcements)
-    Transport_Drops = 3
-    ForkThread(TransportReinforcements)
+    
+    --- Frigates and AA Boat Reinforcements
+    ForkThread(OffmapSeaReinforcements)
+    
+    --- Small Enemy Naval Attack
+    local platoon = ScenarioUtils.CreateArmyGroupAsPlatoon('Aeon', 'M1_Sea', 'AttackFormation')
+    ScenarioFramework.PlatoonPatrolChain(platoon, 'M1_Sea_Attack')
     
     --- Primary Objective 2: Kill the second base
     ScenarioInfo.M1P2 = Objectives.CategoriesInArea(
@@ -318,7 +326,7 @@ function Mission1Cont()
     ScenarioInfo.M1P2:AddResultCallback(
         function(result)
             if(result) then
-                ForkThread(NIS3)
+                IntroNIS3()
             end
         end
     )
@@ -368,28 +376,297 @@ function Mission1Cont()
     ScenarioInfo.M1S2:AddResultCallback(
         function(result)
             if(result) then
-                ForkThread(Mission1KillT2PD)
+                ForkThread(Mission1KillT2Def)
+                Transport_Drops = 3
+                ForkThread(TransportReinforcements)
+                for _, unit in ScenarioInfo.M1AeonRadar do
+                    if unit and not unit.Dead then
+                        unit:Kill()
+                    end
+                end
             end
         end
     )
     table.insert(AssignedObjectives, ScenarioInfo.M1S2)
 end
 
+function IntroNIS3()
+    
+    --- Spawn enemy base and units
+
+    --- West Base and Patrols
+    M2AeonBaseAI.AeonM2WestBaseAI()
+    local platoon = ScenarioUtils.CreateArmyGroupAsPlatoon('Aeon', 'M2_Air_West', 'NoFormation')
+    ScenarioFramework.PlatoonPatrolChain(platoon, 'M2_West_Air')
+    local platoon = ScenarioUtils.CreateArmyGroupAsPlatoon('Aeon', 'M2_Land1_West', 'AttackFormation')
+    ScenarioFramework.PlatoonPatrolChain(platoon, 'M2_West_Land')
+    local platoon = ScenarioUtils.CreateArmyGroupAsPlatoon('Aeon', 'M2_Land2_West', 'GrowthFormation')
+    ScenarioFramework.PlatoonPatrolChain(platoon, 'M2_West_Land')
+    local platoon = ScenarioUtils.CreateArmyGroupAsPlatoon('Aeon', 'M2_Naval_West', 'GrowthFormation')
+    ScenarioFramework.PlatoonPatrolChain(platoon, 'M2_West_Sea')
+
+    --- North Base and Patrols
+    M2AeonBaseAI.AeonM2NorthBaseAI()
+    local platoon = ScenarioUtils.CreateArmyGroupAsPlatoon('Aeon', 'M2_Air_North', 'NoFormation')
+    ScenarioFramework.PlatoonPatrolChain(platoon, 'M2_North_Air')
+    local platoon = ScenarioUtils.CreateArmyGroupAsPlatoon('Aeon', 'M2_Land1_North', 'AttackFormation')
+    ScenarioFramework.PlatoonPatrolChain(platoon, 'M2_North_Land')
+    local platoon = ScenarioUtils.CreateArmyGroupAsPlatoon('Aeon', 'M2_Land2_North', 'GrowthFormation')
+    ScenarioFramework.PlatoonPatrolChain(platoon, 'M2_North_Land')
+    local platoon = ScenarioUtils.CreateArmyGroupAsPlatoon('Aeon', 'M2_Naval_North', 'GrowthFormation')
+    ScenarioFramework.PlatoonPatrolChain(platoon, 'M2_North_Sea')
+
+    --- South Base and Patrols
+    M2AeonBaseAI.AeonM2SouthBaseAI()
+    local platoon = ScenarioUtils.CreateArmyGroupAsPlatoon('Aeon', 'M2_Air_South', 'NoFormation')
+    ScenarioFramework.PlatoonPatrolChain(platoon, 'M2_South_Air')
+    local platoon = ScenarioUtils.CreateArmyGroupAsPlatoon('Aeon', 'M2_Land_South', 'AttackFormation')
+    ScenarioFramework.PlatoonPatrolChain(platoon, 'M2_South_Land')
+    local platoon = ScenarioUtils.CreateArmyGroupAsPlatoon('Aeon', 'M2_Naval_South', 'GrowthFormation')
+    ScenarioFramework.PlatoonPatrolChain(platoon, 'M2_South_Sea')
+
+    --- Disable North and South bases
+    M2AeonBaseAI.DisableBases()
+
+    --- Civilians
+    ScenarioUtils.CreateArmyGroup('Civilians', 'M2_Civilians')
+    ScenarioInfo.M2AeonStructure = ScenarioUtils.CreateArmyUnit('Objective', 'M2_Objective')
+
+    --- Miscellaneous 
+    ScenarioUtils.CreateArmyGroup('Aeon', 'M2_Walls')
+    ScenarioInfo.M2AeonT2Defenses = ScenarioUtils.CreateArmyGroup('Aeon', 'M2_T2_Def')
+    ScenarioInfo.M2AeonT2Arty = ScenarioUtils.CreateArmyGroup('Aeon', 'M2_T2_Arty')
+    ScenarioInfo.M2AeonStealthGen = ScenarioUtils.CreateArmyGroup('Aeon', 'M2_Stealth_Gens')
+
+    
+    ForkThread(NIS3)
+end
+
+---------------
+--- NIS Scene 3
+---------------
 function NIS3()
+    WaitSeconds(4)
+    
+    --- Sea Reinforcements
+    for i = 1, 2 do
+        ForkThread(OffmapSeaReinforcements)
+    end
+
+    --- Set area for Mission 2
+    ScenarioFramework.SetPlayableArea('M2_Area', false)
+    
+    Cinematics.EnterNISMode()
+    
+    local VisMarker2_1 = ScenarioFramework.CreateVisibleAreaLocation(50, 'M2_Vis_1', 0, ArmyBrains[Player1])
+    WaitSeconds(2)
+    Cinematics.CameraMoveToMarker(ScenarioUtils.GetMarker('NIS3_Cam_1'), 3)
+    WaitSeconds(4)
+    
+    --- Destroy vis markers, but keep intel
+    ForkThread(
+    function()
+        WaitSeconds(2)
+        VisMarker2_1:Destroy()
+        WaitSeconds(2)
+    end
+    )
+
+    Cinematics.ExitNISMode()
     Mission2()
 end
 
+-------------
+--- Mission 2
+-------------
 function Mission2()
+    ScenarioInfo.MissionNumber = 2
+
+    --- End T1 build restrictions
+    for _, player in ScenarioInfo.HumanPlayers do
+        ScenarioFramework.RemoveRestriction(player, categories.TECH1)
+    end
+    
+    --- Primary Objective 1: Kill the island base
+    ScenarioInfo.M2P1 = Objectives.CategoriesInArea(
+    'primary',                      
+    'incomplete',                  
+    'Destroy the Base',    
+    'Destroy the operating enemy base on the island.',  
+    'kill',                         
+    {                               
+        MarkUnits = true,
+        Requirements = {
+            {
+                Area = 'M2_West_Base',
+                Category = categories.FACTORY,
+                CompareOp = '<=',
+                Value = 0,
+                ArmyIndex = Aeon,
+            },
+        },
+    }
+    )
+    table.insert(AssignedObjectives, ScenarioInfo.M2P1)
+
+    --- Player Reinforcements
+    Transport_Drops = 4
+    ForkThread(TransportReinforcements)
+    WaitSeconds(10)
+    Transport_Drops = 5
+    ForkThread(TransportReinforcements)
+
+    --- Create trigger to next part of mission 2, requiring player to scout the stealth gens in the inactive North and South bases
+    ScenarioFramework.CreateArmyIntelTrigger(NIS4, ArmyBrains[Player1], 'LOSNow', false, true, categories.COUNTERINTELLIGENCE, true, ArmyBrains[Aeon])
+
+    --- Create trigger to destroy T2 arty when spotted
+    ScenarioFramework.CreateArmyIntelTrigger(M2CivBaseSpotted, ArmyBrains[Player1], 'LOSNow', false, true, categories.AEON, true, ArmyBrains[Objective])
+
+    --- Create timer trigger for additional bases becoming active
+    ScenarioFramework.CreateTimerTrigger(M2ActivateBases, 400)
 end
 
--------------------
--- Helper Functions
--------------------
+--- NIS for when the bases are scouted
+function NIS4()
+    WaitSeconds(3)
+    Cinematics.EnterNISMode()
+    
+    local VisMarker2_2 = ScenarioFramework.CreateVisibleAreaLocation(50, 'M2_Vis_2', 0, ArmyBrains[Player1])
+    Cinematics.CameraMoveToMarker(ScenarioUtils.GetMarker('NIS4_Cam_1'), 2)
+    WaitSeconds(3)
+
+    local VisMarker2_3 = ScenarioFramework.CreateVisibleAreaLocation(50, 'M2_Vis_3', 0, ArmyBrains[Player1])
+    Cinematics.CameraMoveToMarker(ScenarioUtils.GetMarker('NIS4_Cam_2'), 3)
+    WaitSeconds(3)
+
+    --- Destroy vis markers, but keep intel
+    ForkThread(
+    function()
+        WaitSeconds(2)
+        VisMarker2_2:Destroy()
+        WaitSeconds(2)
+        VisMarker2_3:Destroy()
+        WaitSeconds(2)
+    end
+    )
+
+    Cinematics.ExitNISMode()
+    
+    Mission2Add()
+end
+
+
+--- Create objectives when bases are spotted
+function Mission2Add()
+    
+    --- Primary Objective 2: Destroy the North base
+    ScenarioInfo.M2P2 = Objectives.CategoriesInArea(
+    'primary',                      
+    'incomplete',                  
+    'Destroy the Base',    
+    'Destroy the operating enemy base on the island.',  
+    'kill',                         
+    {                               
+        MarkUnits = true,
+        Requirements = {
+            {
+                Area = 'M2_North_Base',
+                Category = categories.FACTORY,
+                CompareOp = '<=',
+                Value = 0,
+                ArmyIndex = Aeon,
+            },
+        },
+    }
+    )
+    table.insert(AssignedObjectives, ScenarioInfo.M2P2)
+
+    --- Primary Objective 3: Destroy the South base
+    ScenarioInfo.M2P3 = Objectives.CategoriesInArea(
+    'primary',                      
+    'incomplete',                  
+    'Destroy the Base',    
+    'Destroy the operating enemy base on the island.',  
+    'kill',                         
+    {                               
+        MarkUnits = true,
+        Requirements = {
+            {
+                Area = 'M2_South_Base',
+                Category = categories.FACTORY,
+                CompareOp = '<=',
+                Value = 0,
+                ArmyIndex = Aeon,
+            },
+        },
+    }
+    )
+    table.insert(AssignedObjectives, ScenarioInfo.M2P3)
+
+    --- When player scouts the civilian island, create secondary objective
+    ScenarioFramework.CreateArmyIntelTrigger(M2CivBaseSpotted, ArmyBrains[Player1], 'LOSNow', false, true, categories.AEON, true, ArmyBrains[Objective])
+end
+
+--- Create objective when base is spotted
+function M2CivBaseSpotted()
+    
+    --- Secondary Objective 1: Capture the target
+    ScenarioInfo.M2S1 = Objectives.Capture(
+        'secondary',                      -- type
+        'incomplete',                   -- complete
+        'Capture the Structure',             
+        'Capture the structure that seems to be causing the localized malfunctions.',
+        {
+            Units = {ScenarioInfo.M2AeonStructure},
+            FlashVisible = true,
+        }
+    )
+    table.insert(AssignedObjectives, ScenarioInfo.M2S1)
+end
+
+--- Create objective when arty is spotted
+function M2ArtySpotted()
+    --- Secondary Objective 2: Destroy the artillery
+    ScenarioInfo.M2S2 = Objectives.CategoriesInArea(
+    'secondary',                      
+    'incomplete',                  
+    'Destroy Artillery Defenses',    
+    'Destroy the Artillery installations guarding the entrance to the bases.',  
+    'kill',                         
+    {                               
+        MarkUnits = true,
+        Requirements = {
+            {
+                Area = 'M2_North_Base',
+                Category = categories.ARTILLERY,
+                CompareOp = '<=',
+                Value = 0,
+                ArmyIndex = Aeon,
+            },
+        },
+    }
+    )
+    table.insert(AssignedObjectives, ScenarioInfo.M2S2)
+end
 
 -------------
--- Destroy PD
+--- Mission 3
 -------------
-function Mission1KillT2PD()
+
+function NIS5()
+end
+
+function Mission3()
+end
+
+--------------------
+--- Helper Functions
+--------------------
+
+-----------------------------
+--- Destroy T2 Defenses In M1
+-----------------------------
+function Mission1KillT2Def()
     local flipToggle = false
     for _, unit in ScenarioInfo.M1AeonT2Defenses do
         if unit and not unit.Dead then
@@ -405,9 +682,52 @@ function Mission1KillT2PD()
     end
 end
 
--------------------------------------------
--- Transport in Reinforcements from off-map
--------------------------------------------
+-----------------------------
+--- Destroy T2 Defenses In M2
+-----------------------------
+function Mission2KillT2Def()
+    local flipToggle = false
+    for _, unit in ScenarioInfo.M2AeonT2Defenses do
+        if unit and not unit.Dead then
+            unit:Kill()
+            if flipToggle then
+                WaitSeconds(0.1)
+                flipToggle = false
+            else
+                WaitSeconds(0.1)
+                flipToggle = true
+            end
+        end
+    end
+end
+
+-------------------------------
+--- Off-map Land Reinforcements
+-------------------------------
+function OffmapLandM1Reinforcements()
+    for i = 1, 6 do
+        local tank = ScenarioUtils.CreateArmyUnit('Player1', 'LightTank1')
+        IssueMove({tank}, ScenarioUtils.MarkerToPosition('M1_Land_1R'))
+        WaitSeconds(1)
+    end
+end
+
+------------------------------
+--- Off-map Sea Reinforcements
+------------------------------
+function OffmapSeaReinforcements()
+    for i = 1, 2 do
+        local boat = ScenarioUtils.CreateArmyUnit('Player1', 'Frigate')
+        IssueMove({boat}, ScenarioUtils.MarkerToPosition('M1_Sea_Attackc'))
+        WaitSeconds(1)
+    end
+    local boat = ScenarioUtils.CreateArmyUnit('Player1', 'PatrolBoat')
+    IssueMove({boat}, ScenarioUtils.MarkerToPosition('M1_Sea_Attackc'))
+end
+
+--------------------------------------------
+--- Transport in Reinforcements from off-map
+--------------------------------------------
 function TransportReinforcements()
     local allUnits = {}
     local allTransports = {}
@@ -424,12 +744,13 @@ function TransportReinforcements()
     IssueMove({transport}, ScenarioUtils.MarkerToPosition('M1_Land_1R'))
     WaitSeconds(10)
     IssueMove({transport}, ScenarioUtils.MarkerToPosition('M1_Land_1R'))
+    WaitSeconds(2)
     --- IssueTransportUnload({transport}, ScenarioUtils.MarkerToPosition('M1_Reinforcements'))
 end
 
--------------
--- ACU Spawns
--------------
+--------------
+--- ACU Spawns
+--------------
 function SpawnAllACUs()
     ScenarioInfo.PlayerCDR = ScenarioFramework.SpawnCommander('Player1', 'Commander', 'Warp', true, true, PlayerDeath)
     
@@ -444,7 +765,7 @@ function SpawnAllACUs()
 end
 
 -------------
--- ACU Death
+--- ACU Death
 -------------
 function PlayerDeath(deadCommander)
     ScenarioFramework.PlayerDeath(deadCommander, nil, AssignedObjectives)

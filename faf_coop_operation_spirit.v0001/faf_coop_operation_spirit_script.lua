@@ -65,9 +65,9 @@ local NIS1InitialDelay = 1
 ---------------
 --- Debug only!
 ---------------
-local Debug = true
-local SkipNIS1 = true
-local SkipNIS2 = true
+local Debug = false
+local SkipNIS1 = false
+local SkipNIS2 = false
 local SkipNIS3 = false
 local SkipNIS4 = false
 local SkipNIS5 = false
@@ -403,40 +403,40 @@ function IntroNIS3()
 
     --- West Base and Patrols
     M2AeonBaseAI.AeonM2WestBaseAI()
-    local platoon = ScenarioUtils.CreateArmyGroupAsPlatoon('Aeon', 'M2_Air_West', 'NoFormation')
+    local platoon = ScenarioUtils.CreateArmyGroupAsPlatoon('Aeon', 'M2_West_Air', 'NoFormation')
     ScenarioFramework.PlatoonPatrolChain(platoon, 'M2_West_Air')
-    local platoon = ScenarioUtils.CreateArmyGroupAsPlatoon('Aeon', 'M2_Land1_West', 'AttackFormation')
+    local platoon = ScenarioUtils.CreateArmyGroupAsPlatoon('Aeon', 'M2_West_Land_1', 'AttackFormation')
     ScenarioFramework.PlatoonPatrolChain(platoon, 'M2_West_Land')
-    local platoon = ScenarioUtils.CreateArmyGroupAsPlatoon('Aeon', 'M2_Land2_West', 'GrowthFormation')
+    local platoon = ScenarioUtils.CreateArmyGroupAsPlatoon('Aeon', 'M2_West_Land_2', 'GrowthFormation')
     ScenarioFramework.PlatoonPatrolChain(platoon, 'M2_West_Land')
-    local platoon = ScenarioUtils.CreateArmyGroupAsPlatoon('Aeon', 'M2_Naval_West', 'GrowthFormation')
+    local platoon = ScenarioUtils.CreateArmyGroupAsPlatoon('Aeon', 'M2_West_Naval', 'GrowthFormation')
     ScenarioFramework.PlatoonPatrolChain(platoon, 'M2_West_Sea')
 
     --- North Base and Patrols
     M2AeonBaseAI.AeonM2NorthBaseAI()
-    local platoon = ScenarioUtils.CreateArmyGroupAsPlatoon('Aeon', 'M2_Air_North', 'NoFormation')
+    local platoon = ScenarioUtils.CreateArmyGroupAsPlatoon('Aeon', 'M2_North_Air', 'NoFormation')
     ScenarioFramework.PlatoonPatrolChain(platoon, 'M2_North_Air')
-    local platoon = ScenarioUtils.CreateArmyGroupAsPlatoon('Aeon', 'M2_Land1_North', 'AttackFormation')
+    local platoon = ScenarioUtils.CreateArmyGroupAsPlatoon('Aeon', 'M2_North_Land_1', 'AttackFormation')
     ScenarioFramework.PlatoonPatrolChain(platoon, 'M2_North_Land')
-    local platoon = ScenarioUtils.CreateArmyGroupAsPlatoon('Aeon', 'M2_Land2_North', 'GrowthFormation')
+    local platoon = ScenarioUtils.CreateArmyGroupAsPlatoon('Aeon', 'M2_North_Land_2', 'GrowthFormation')
     ScenarioFramework.PlatoonPatrolChain(platoon, 'M2_North_Land')
-    local platoon = ScenarioUtils.CreateArmyGroupAsPlatoon('Aeon', 'M2_Naval_North', 'GrowthFormation')
+    local platoon = ScenarioUtils.CreateArmyGroupAsPlatoon('Aeon', 'M2_North_Naval', 'GrowthFormation')
     ScenarioFramework.PlatoonPatrolChain(platoon, 'M2_North_Sea')
 
     --- South Base and Patrols
     M2AeonBaseAI.AeonM2SouthBaseAI()
-    local platoon = ScenarioUtils.CreateArmyGroupAsPlatoon('Aeon', 'M2_Air_South', 'NoFormation')
+    local platoon = ScenarioUtils.CreateArmyGroupAsPlatoon('Aeon', 'M2_South_Air', 'NoFormation')
     ScenarioFramework.PlatoonPatrolChain(platoon, 'M2_South_Air')
-    local platoon = ScenarioUtils.CreateArmyGroupAsPlatoon('Aeon', 'M2_Land_South', 'AttackFormation')
+    local platoon = ScenarioUtils.CreateArmyGroupAsPlatoon('Aeon', 'M2_South_Land', 'AttackFormation')
     ScenarioFramework.PlatoonPatrolChain(platoon, 'M2_South_Land')
-    local platoon = ScenarioUtils.CreateArmyGroupAsPlatoon('Aeon', 'M2_Naval_South', 'GrowthFormation')
+    local platoon = ScenarioUtils.CreateArmyGroupAsPlatoon('Aeon', 'M2_South_Naval', 'GrowthFormation')
     ScenarioFramework.PlatoonPatrolChain(platoon, 'M2_South_Sea')
 
     --- Disable North and South bases
     M2AeonBaseAI.DisableBases()
 
     --- Civilians
-    ScenarioUtils.CreateArmyGroup('Civilians', 'M2_Civilians')
+    ScenarioInfo.M2Civilians = ScenarioUtils.CreateArmyGroup('Civilians', 'M2_Civilians')
     ScenarioInfo.M2AeonStructure = ScenarioUtils.CreateArmyUnit('Objective', 'M2_Objective')
 
     --- Miscellaneous 
@@ -444,6 +444,19 @@ function IntroNIS3()
     ScenarioInfo.M2AeonT2Defenses = ScenarioUtils.CreateArmyGroup('Aeon', 'M2_T2_Def')
     ScenarioInfo.M2AeonT2Arty = ScenarioUtils.CreateArmyGroup('Aeon', 'M2_T2_Arty')
     ScenarioInfo.M2AeonStealthGen = ScenarioUtils.CreateArmyGroup('Aeon', 'M2_Stealth_Gens')
+
+    --- Set civilians to be unkillable for ease of play
+    for _, unit in ScenarioInfo.M2Civilians do
+        unit:SetReclaimable(false)
+        unit:SetCanBeKilled(false)
+        unit:SetCanTakeDamage(false)
+        unit:SetCapturable(false)
+    end
+
+    --- Set objective to be unkillable for ease of play
+    ScenarioInfo.M2AeonStructure:SetReclaimable(false)
+    ScenarioInfo.M2AeonStructure:SetCanBeKilled(false)
+    ScenarioInfo.M2AeonStructure:SetCanTakeDamage(false)
 
     ForkThread(NIS3)
 end
@@ -488,6 +501,9 @@ function Mission2()
 
     ScenarioFramework.SetSharedUnitCap(400)
 
+    --- Create trigger to next part of mission 2, requiring player to scout the stealth gens in the inactive North and South bases
+    ScenarioFramework.CreateArmyIntelTrigger(IntroNIS4, ArmyBrains[Player1], 'LOSNow', false, true, categories.COUNTERINTELLIGENCE, true, ArmyBrains[Aeon])
+
     --- Add T2 Engie restriction for AI
     ScenarioFramework.AddRestriction(Aeon, categories.ual0208)
    
@@ -520,7 +536,6 @@ function Mission2()
         function(result)
             if(result) then
                 M2ActivateBases()
-                Activate = 1
                 M2ObjectiveChecker = M2ObjectiveChecker + 1
             end
         end
@@ -534,14 +549,16 @@ function Mission2()
     Transport_Drops = 5
     ForkThread(TransportReinforcements)
 
-    --- Create trigger to next part of mission 2, requiring player to scout the stealth gens in the inactive North and South bases
-    ScenarioFramework.CreateArmyIntelTrigger(IntroNIS4, ArmyBrains[Player1], 'LOSNow', false, true, categories.COUNTERINTELLIGENCE, true, ArmyBrains[Aeon])
-
-    --- Create trigger to destroy T2 arty when spotted
-    ScenarioFramework.CreateArmyIntelTrigger(M2ArtySpotted, ArmyBrains[Player1], 'LOSNow', false, true, categories.AEON, true, ArmyBrains[Objective])
-
     --- Create timer trigger for additional bases becoming active
     ScenarioFramework.CreateTimerTrigger(M2BaseTimer, 500)
+
+    --- Spawn interceptor attack to clean up transports organically
+    ScenarioFramework.CreateTimerTrigger(M2IntieAttack, 30) 
+end
+
+function M2IntieAttack()
+    local platoon = ScenarioUtils.CreateArmyGroupAsPlatoon('Aeon', 'M2_Inties_Attack', 'NoFormation')
+    ScenarioFramework.PlatoonPatrolChain(platoon, 'M2_Intie_Attack')
 end
 
 --- Intro NIS for when the bases are scouted
@@ -641,6 +658,9 @@ function Mission2Add()
     --- When player scouts the civilian island, create secondary objective
     ScenarioFramework.CreateArmyIntelTrigger(M2CivBaseSpotted, ArmyBrains[Player1], 'LOSNow', false, true, categories.AEON, true, ArmyBrains[Objective])
 
+    --- Create trigger to destroy T2 arty when spotted
+    ScenarioFramework.CreateArmyIntelTrigger(M2ArtySpotted, ArmyBrains[Player1], 'LOSNow', false, true, categories.ARTILLERY, true, ArmyBrains[Aeon])
+
     --- Check when all objectives are completed
     ForkThread(M2ObjectivesCompletedCheck)
 end
@@ -663,6 +683,8 @@ function M2CivBaseSpotted()
         function(result)
             if(result) then
                 ForkThread(Mission2KillT2Def)
+                Transport_Drops = 6
+                ForkThread(TransportReinforcements)
             end
         end
     )
@@ -749,7 +771,7 @@ function IntroNIS5()
     ScenarioFramework.PlatoonPatrolChain(platoon, 'M3_Forward_Land_1')
 
     --- Civilians
-    ScenarioUtils.CreateArmyGroup('Civilians', 'M3_Civilians')
+    ScenarioInfo.M3Civilians = ScenarioUtils.CreateArmyGroup('Civilians', 'M3_Civilians')
 
     --- Miscellaneous
     ScenarioUtils.CreateArmyGroup('Aeon', 'M3_Walls')
@@ -761,6 +783,33 @@ function IntroNIS5()
     ScenarioInfo.M3Temple3 = ScenarioUtils.CreateArmyUnit('Objective', 'M3_Temple_3')
     ScenarioInfo.Gate = ScenarioUtils.CreateArmyUnit('Objective', 'M3_Gate')
     ScenarioInfo.GateDef = ScenarioUtils.CreateArmyGroup('Aeon', 'M3_Gate_Def')
+
+    --- Set civilians to be unkillable for ease of play
+    for _, unit in ScenarioInfo.M3Civilians do
+        unit:SetReclaimable(false)
+        unit:SetCanBeKilled(false)
+        unit:SetCanTakeDamage(false)
+        unit:SetCapturable(false)
+    end
+
+    --- Set Temples to be unkillable for ease of play
+    ScenarioInfo.M3Temple1:SetReclaimable(false)
+    ScenarioInfo.M3Temple1:SetCanBeKilled(false)
+    ScenarioInfo.M3Temple1:SetCanTakeDamage(false)
+
+    ScenarioInfo.M3Temple2:SetReclaimable(false)
+    ScenarioInfo.M3Temple2:SetCanBeKilled(false)
+    ScenarioInfo.M3Temple2:SetCanTakeDamage(false)
+
+    ScenarioInfo.M3Temple3:SetReclaimable(false)
+    ScenarioInfo.M3Temple3:SetCanBeKilled(false)
+    ScenarioInfo.M3Temple3:SetCanTakeDamage(false)
+
+    --- Set gate to be unkillable and uncapturable for ease of play
+    ScenarioInfo.Gate:SetReclaimable(false)
+    ScenarioInfo.Gate:SetCanBeKilled(false)
+    ScenarioInfo.Gate:SetCanTakeDamage(false)
+    ScenarioInfo.Gate:SetCapturable(false)
     
     NIS5()
 end
@@ -812,20 +861,23 @@ end
 -------------
 
 function Mission3()
+    ScenarioInfo.MissionNumber = 3
+
+    ScenarioFramework.SetSharedUnitCap(800)
     
     --- Primary Objective 1: Kill the Western base
     ScenarioInfo.M3P1 = Objectives.CategoriesInArea(
     'primary',                      
     'incomplete',                  
     'Destroy the Naval Base',    
-    'Destroy the naval powerhouse assaulting your position.',  
+    'Destroy the Western malfunctioning base.',  
     'kill',                         
     {                               
         MarkUnits = true,
         Requirements = {
             {
                 Area = 'M3_West_Base',
-                Category = categories.FACTORY + categories.ECONOMIC,
+                Category = categories.FACTORY,
                 CompareOp = '<=',
                 Value = 0,
                 ArmyIndex = Aeon,
@@ -833,7 +885,7 @@ function Mission3()
         },
     }
     )
-    ScenarioInfo.M3P2:AddResultCallback(
+    ScenarioInfo.M3P1:AddResultCallback(
         function(result)
             if(result) then
                 M3ObjectiveChecker = M3ObjectiveChecker + 1
@@ -847,14 +899,14 @@ function Mission3()
     'primary',                      
     'incomplete',                  
     'Destroy Enemy Base',    
-    'Destroy the malfunctioning base assaulting your position.',  
+    'Destroy the naval powerhouse assaulting your position.',  
     'kill',                         
     {                               
         MarkUnits = true,
         Requirements = {
             {
                 Area = 'M3_East_Base',
-                Category = categories.FACTORY + categories.ECONOMIC,
+                Category = categories.FACTORY,
                 CompareOp = '<=',
                 Value = 0,
                 ArmyIndex = Aeon,
@@ -878,7 +930,7 @@ function Mission3()
         'Capture the Structure',             
         'Capture the structure that seems to be causing the localized malfunctions.',
         {
-            Units = {ScenarioInfo.M3_Temple_1},
+            Units = {ScenarioInfo.M3Temple1},
             FlashVisible = true,
         }
     )
@@ -903,7 +955,7 @@ function Mission3()
         Requirements = {
             {
                 Area = 'M3_Forward_Base',
-                Category = categories.FACTORY + categories.ECONOMIC,
+                Category = categories.FACTORY,
                 CompareOp = '<=',
                 Value = 0,
                 ArmyIndex = Aeon,
@@ -929,7 +981,7 @@ function Mission3Add()
         'Capture the Structure',             
         'Capture the structure that seems to be causing the localized malfunctions.',
         {
-            Units = {ScenarioInfo.M3_Temple_2, ScenarioInfo.M3_Temple_3}
+            Units = {ScenarioInfo.M3Temple2},
             FlashVisible = true,
         }
     )
@@ -941,11 +993,31 @@ function Mission3Add()
         end
     )
     table.insert(AssignedObjectives, ScenarioInfo.M3P4)
+
+    --- Primary Objective 5: Capture the other Seraphim Temples
+    ScenarioInfo.M3P5 = Objectives.Capture(
+        'primary',                      -- type
+        'incomplete',                   -- complete
+        'Capture the Structure',             
+        'Capture the structure that seems to be causing the localized malfunctions.',
+        {
+            Units = {ScenarioInfo.M3Temple3},
+            FlashVisible = true,
+        }
+    )
+    ScenarioInfo.M3P5:AddResultCallback(
+        function(result)
+            if(result) then
+                M3ObjectiveChecker = M3ObjectiveChecker + 1
+            end
+        end
+    )
+    table.insert(AssignedObjectives, ScenarioInfo.M3P5)
 end
 
 --- Function checking that objectives are completed
 function M3ObjectivesCompletedCheck()
-    while ObjectiveChecker ~= 3 do
+    while M3ObjectiveChecker ~= 4 do
         WaitSeconds(1)
     end
     Mission4()
@@ -956,7 +1028,65 @@ end
 -------------
 
 function Mission4()
+    ScenarioInfo.MissionNumber = 4
+
+    --- Gift Gate Defenses to Player
+    for k, unit in ScenarioInfo.GateDef do
+        ScenarioFramework.GiveUnitToArmy(unit, Player1)
+    end
     
+    --- Final Primary Objective: Move ACU to Gate
+    ScenarioInfo.M4P1 = Objectives.Basic(
+        'primary',
+        'incomplete',
+        'Move ACU',
+        'Move your ACU close to the Gate',
+        Objectives.GetActionIcon('move'),
+        {
+            Area = 'M3_Gate',
+            MarkArea = true,
+        }
+    )
+    ScenarioFramework.CreateAreaTrigger(NIS6, ScenarioUtils.AreaToRect('M3_Gate'), categories.ual0001, true, false, ArmyBrains[Player1], 1, false)
+    table.insert(AssignedObjectives, ScenarioInfo.M4P1)
+end
+
+--------------------
+--- Ending Cinematic
+--------------------
+
+function NIS6()
+    ForkThread(Wait)
+
+    SetAlliance(Player1, Seraphim, 'Ally')
+    SetAlliance(Player2, Seraphim, 'Ally')
+    Cinematics.EnterNISMode()
+    local VisMarker4_1 = ScenarioFramework.CreateVisibleAreaLocation(30, 'M4_Vis_1', 0, ArmyBrains[Player1])
+    Cinematics.CameraMoveToMarker(ScenarioUtils.GetMarker('NIS6_Cam_1'), 3)
+
+    ForkThread(Wait)
+
+    --- Gate in Upgraded Seraphim ACU
+    ScenarioInfo.SeraphimCDR = ScenarioUtils.CreateArmyUnit('Seraphim', 'Commander')
+    ScenarioInfo.SeraphimCDR:CreateEnhancement('ResourceAllocation')
+    ScenarioInfo.SeraphimCDR:CreateEnhancement('T3Engineering')
+    ScenarioInfo.SeraphimCDR:CreateEnhancement('RateOfFire')
+    ScenarioInfo.SeraphimCDR:SetCanBeKilled(false)
+    ScenarioInfo.SeraphimCDR:PlayCommanderWarpInEffect()
+
+    --- Gate in two Support ACUs
+    ScenarioInfo.SeraphimSACU1 = ScenarioUtils.CreateArmyUnit('Seraphim', 'Support_Commander_1')
+    ScenarioInfo.SeraphimSACU1:PlayCommanderWarpInEffect()
+    ScenarioInfo.SeraphimSACU1:SetCanBeKilled(false)
+    ScenarioInfo.SeraphimSACU2 = ScenarioUtils.CreateArmyUnit('Seraphim', 'Support_Commander_2')
+    ScenarioInfo.SeraphimSACU2:PlayCommanderWarpInEffect()
+    ScenarioInfo.SeraphimSACU2:SetCanBeKilled(false)
+
+    ForkThread(Wait)
+
+    IssueMove({ScenarioInfo.SeraphimCDR}, ScenarioUtils.MarkerToPosition('Seraphim_ACU_Move'))
+
+    PlayerWin()
 end
 
 --------------------
@@ -1071,7 +1201,10 @@ end
 --- Activate North and South bases
 ----------------------------------
 function M2ActivateBases()
-    M2AeonBaseAI.ActivateBases()
+    if Activate == 0 then
+        Activate = 1
+        M2AeonBaseAI.ActivateBases()
+    end
 end
 
 ---------------------------------------------
@@ -1100,11 +1233,27 @@ function SpawnAllACUs()
     end
 end
 
--------------
---- ACU Death
--------------
+------------
+--- End Game
+------------
+
+--- Player Wins
+function PlayerWin()
+    if(not ScenarioInfo.OpEnded) then
+        ScenarioInfo.OpComplete = true
+    end
+    KillGame()
+end
+
+--- Player Dies
 function PlayerDeath(deadCommander)
     ScenarioFramework.PlayerDeath(deadCommander, nil, AssignedObjectives)
+end
+
+--- Kill Game
+function KillGame()
+    UnlockInput()
+    ScenarioFramework.EndOperation(ScenarioInfo.OpComplete, ScenarioInfo.OpComplete, true)
 end
 
 -------------------
@@ -1113,6 +1262,9 @@ end
 function OnShiftF4()
     LOG('******************************')
     LOG('Num Player units: ', repr(GetArmyUnitCostTotal(Player1)))
+    LOG('******************************')
+    LOG('Num Aeon units: ', repr(GetArmyUnitCostTotal(Hex5)))
+    LOG('******************************')
 end
 
 function OnShiftF5()
@@ -1121,4 +1273,24 @@ function OnShiftF5()
     ScenarioFramework.RemoveRestriction(Player1, categories.TECH1)
     ScenarioFramework.RemoveRestriction(Player1, categories.TECH2)
     ScenarioFramework.RemoveRestriction(Player1, categories.TECH3)
+end
+
+function OnCtrlF4()
+    LOG('******************************')
+    LOG('KILLING UNITS')
+    if ScenarioInfo.MissionNumber == 1 then
+        for _, v in ArmyBrains[Aeon]:GetListOfUnits(categories.ALLUNITS, false) do
+            v:Kill()
+        end
+    end
+    if ScenarioInfo.MissionNumber == 2 then
+        for _, v in ArmyBrains[Aeon]:GetListOfUnits(categories.ALLUNITS, false) do
+            v:Kill()
+        end
+    end
+    if ScenarioInfo.MissionNumber == 3 then
+        for _, v in ArmyBrains[Aeon]:GetListOfUnits(categories.ALLUNITS, false) do
+            v:Kill()
+        end
+    end
 end
